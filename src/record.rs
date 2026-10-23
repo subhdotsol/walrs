@@ -51,6 +51,8 @@ pub enum WalError {
     FileNotEmpty,
     WriterPoisoned,
     SequenceOverflow,
+    CorruptRecord(String),
+    SequenceMismatch { expected: u64, actual: u64 },
 }
 
 impl fmt::Display for WalError {
@@ -76,6 +78,15 @@ impl fmt::Display for WalError {
             }
             WalError::SequenceOverflow => {
                 write!(f, "WAL sequence number overflow")
+            }
+            WalError::CorruptRecord(message) => {
+                write!(f, "WAL corruption: {message}")
+            }
+            WalError::SequenceMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "WAL sequence mismatch: expected {expected}, got {actual}"
+                )
             }
         }
     }
