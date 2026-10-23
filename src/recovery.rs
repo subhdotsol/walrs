@@ -39,6 +39,14 @@ impl WalRecovery {
     /// An incomplete trailing record is removed by truncating the file to
     /// the last valid boundary. The truncation is synchronized before return.
     pub fn recover(&mut self) -> Result<Vec<Record>, WalError> {
+        self.recover_from(1)
+    }
+
+    /// Recovers records starting at the supplied expected sequence number.
+    pub(crate) fn recover_from(
+        &mut self,
+        starting_sequence: u64,
+    ) -> Result<Vec<Record>, WalError> {
         self.file
             .seek(SeekFrom::Start(0))
             .map_err(|error| WalError::Io(error.to_string()))?;
@@ -50,13 +58,12 @@ impl WalRecovery {
 
         let mut records = Vec::new();
         let mut offset = 0usize;
-        let mut expected_sequence = 1u64;
+        let mut expected_sequence = starting_sequence;
         let mut truncate_tail = false;
 
         while offset < bytes.len() {
             let remaining = bytes.len() - offset;
 
-            // Not enough bytes to read the complete length prefix.
             if remaining < LENGTH_PREFIX_SIZE {
                 truncate_tail = true;
                 break;
@@ -64,11 +71,12 @@ impl WalRecovery {
 
             let length_bytes: [u8; 4] = bytes[offset..offset + 4]
                 .try_into()
-                .map_err(|_| WalError::CorruptRecord("unable to read record length".to_owned()))?;
+                .map_err(|_| {
+                    WalError::CorruptRecord("unable to read record length".to_owned())
+                })?;
 
             let record_len = u32::from_le_bytes(length_bytes) as usize;
 
-            // An impossible length is corruption, not a torn tail.
             if record_len < MIN_RECORD_SIZE {
                 return Err(WalError::CorruptRecord(format!(
                     "record at offset {offset} declares invalid length {record_len}"
@@ -81,8 +89,6 @@ impl WalRecovery {
                 )));
             }
 
-            // The prefix is plausible, but the declared record extends
-            // beyond EOF. Treat it as an incomplete final record.
             if record_len > remaining {
                 truncate_tail = true;
                 break;
@@ -124,7 +130,6 @@ impl WalRecovery {
                 .map_err(|error| WalError::Io(error.to_string()))?;
         }
 
-        // Leave the file cursor at the end of the valid log.
         self.file
             .seek(SeekFrom::End(0))
             .map_err(|error| WalError::Io(error.to_string()))?;

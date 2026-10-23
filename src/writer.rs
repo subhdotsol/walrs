@@ -100,6 +100,55 @@ impl WalWriter {
             .map_err(|error| WalError::Io(error.to_string()))
     }
 
+    /// Opens a newly created, empty segment starting at `next_sequence`.
+    ///
+    /// The caller must ensure the file was created exclusively and is empty.
+    pub(crate) fn open_segment(
+        path: impl AsRef<Path>,
+        next_sequence: u64,
+    ) -> Result<Self, WalError> {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .map_err(|error| WalError::Io(error.to_string()))?;
+
+        Ok(Self {
+            file,
+            next_sequence,
+            offset: 0,
+            failed: false,
+        })
+    }
+
+    pub(crate) fn open_segment_existing_empty(
+        path: impl AsRef<Path>,
+        next_sequence: u64,
+    ) -> Result<Self, WalError> {
+        let file = OpenOptions::new()
+            .read(true)
+            .append(true)
+            .open(path)
+            .map_err(|error| WalError::Io(error.to_string()))?;
+
+        let offset = file
+            .metadata()
+            .map_err(|error| WalError::Io(error.to_string()))?
+            .len();
+
+        if offset != 0 {
+            return Err(WalError::FileNotEmpty);
+        }
+
+        Ok(Self {
+            file,
+            next_sequence,
+            offset,
+            failed: false,
+        })
+    }
+
     /// Returns the number of bytes successfully appended by this writer.
     pub fn offset(&self) -> u64 {
         self.offset
