@@ -47,6 +47,10 @@ pub enum WalError {
     UnknownOperation(u8),
     InvalidOperationData,
     ChecksumMismatch,
+    Io(String),
+    FileNotEmpty,
+    WriterPoisoned,
+    SequenceOverflow,
 }
 
 impl fmt::Display for WalError {
@@ -63,6 +67,16 @@ impl fmt::Display for WalError {
                 write!(f, "invalid data for operation")
             }
             WalError::ChecksumMismatch => write!(f, "checksum mismatch"),
+            WalError::Io(message) => write!(f, "WAL I/O error: {message}"),
+            WalError::FileNotEmpty => {
+                write!(f, "WAL file is nonempty; recovery is not implemented")
+            }
+            WalError::WriterPoisoned => {
+                write!(f, "WAL writer cannot append after a write failure")
+            }
+            WalError::SequenceOverflow => {
+                write!(f, "WAL sequence number overflow")
+            }
         }
     }
 }

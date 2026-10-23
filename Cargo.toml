@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 crc32fast = "1.5.3"
+
+[dev-dependencies]
+tempfile = "3"
