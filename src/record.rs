@@ -411,3 +411,39 @@ mod tests {
         assert_eq!(Record::decode(&bytes), Err(WalError::InvalidOperationData));
     }
 }
+
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn operation_strategy() -> impl Strategy<Value = Operation> {
+        prop_oneof![
+            (prop::collection::vec(any::<u8>(), 0..256),
+             prop::collection::vec(any::<u8>(), 0..256))
+                .prop_map(|(key, value)| Operation::Put { key, value }),
+            prop::collection::vec(any::<u8>(), 0..256)
+                .prop_map(|key| Operation::Delete { key }),
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn encode_decode_round_trip(
+            sequence in any::<u64>(),
+            operation in operation_strategy()
+        ) {
+            let record = Record { sequence, operation };
+            let encoded = record.encode().unwrap();
+
+            prop_assert_eq!(Record::decode(&encoded), Ok(record));
+        }
+
+        #[test]
+        fn arbitrary_bytes_never_panic(bytes in prop::collection::vec(any::<u8>(), 0..1024)) {
+            let result = std::panic::catch_unwind(|| Record::decode(&bytes));
+            prop_assert!(result.is_ok());
+        }
+    }
+}
