@@ -2,6 +2,8 @@
 
 A write-ahead log (WAL) implemented in Rust to explore durable writes, binary record encoding, crash recovery, and segmented storage.
 
+<img width="1370" height="842" alt="Screenshot 2026-10-24 at 5 59 19 AM" src="https://github.com/user-attachments/assets/7b339d8f-8aef-48d3-a1e9-61df24371065" />
+
 ## Features
 
 - Binary record encoding and decoding
